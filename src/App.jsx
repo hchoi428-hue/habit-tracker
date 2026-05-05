@@ -36,13 +36,23 @@ const PRIORITY = {
 const PRIO_ORDER = ["core","regular","optional"];
 
 const BLOCKS = [
-  { key:"오전", desc:"뇌 예열 · 집중" },
-  { key:"오후", desc:"에너지 방어 · 잔무" },
-  { key:"밤",   desc:"해제 · 수면 준비" },
+  { key:"오전",   desc:"뇌 예열 · 집중" },
+  { key:"오후",   desc:"에너지 방어 · 잔무" },
+  { key:"밤",     desc:"해제 · 수면 준비" },
+  { key:"언제든", desc:"시간 상관 없이" },
+];
+
+const DURATIONS = [
+  { value:0,  label:"없음" },
+  { value:5,  label:"5분" },
+  { value:10, label:"10분" },
+  { value:15, label:"15분" },
+  { value:30, label:"30분" },
+  { value:60, label:"1시간" },
 ];
 
 const DEFAULT_HABITS = [
-  {id:101, name:"물 한 잔 + 영양제",         emoji:"💊", priority:"core",    block:"오전"},
+  {id:101, name:"물 한 잔 + 영양제",         emoji:"💊", priority:"core",    block:"오전",   duration:0},
   {id:102, name:"햇빛 스트레칭 or HIIT",      emoji:"🏃", priority:"core",    block:"오전"},
   {id:103, name:"브레인 덤프",               emoji:"📓", priority:"regular", block:"오전"},
   {id:104, name:"메인 작업 뽀모도로 1세트",   emoji:"🎯", priority:"core",    block:"오전"},
@@ -177,11 +187,16 @@ function HabitRow({habit,checked,skipped,onCheck,streak,canSkip,skippedThisWeek,
             display:"block",
             textDecoration:checked?"line-through":"none",
           }}>{habit.name}</span>
-          {streak>1&&!checked&&!skipped&&(
-            <span style={{fontSize:10,color:PALETTE.streakColor,display:"block",marginTop:1}}>
-              {streak}일 연속
-            </span>
-          )}
+          <div style={{display:"flex",alignItems:"center",gap:6,marginTop:streak>1&&!checked&&!skipped?2:0}}>
+            {streak>1&&!checked&&!skipped&&(
+              <span style={{fontSize:10,color:PALETTE.streakColor}}>{streak}일 연속</span>
+            )}
+            {habit.duration>0&&(
+              <span style={{fontSize:10,color:PALETTE.textThird}}>
+                {habit.duration>=60?"1시간":habit.duration+"분"}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Skip badge */}
@@ -231,8 +246,8 @@ function HabitModal({onSave,onClose,initial}) {
   const [name,setName]         = useState(initial?.name||"");
   const [priority,setPriority] = useState(initial?.priority||"regular");
   const [block,setBlock]       = useState(initial?.block||"오전");
+  const [duration,setDuration] = useState(initial?.duration||0);
 
-  // 전체화면으로 렌더링 — iOS에서 키보드가 올라와도 레이아웃 고정
   return(
     <div style={{
       position:"fixed", inset:0, zIndex:1000,
@@ -255,7 +270,7 @@ function HabitModal({onSave,onClose,initial}) {
         <span style={{fontSize:15, fontWeight:500, color:PALETTE.textPrimary}}>
           {initial&&initial.name?"습관 수정":"새 습관"}
         </span>
-        <button onClick={()=>{if(name.trim()){onSave({name:name.trim(),priority,block});onClose();}}}
+        <button onClick={()=>{if(name.trim()){onSave({name:name.trim(),priority,block,duration});onClose();}}}
           disabled={!name.trim()} style={{
             fontSize:14, fontWeight:600,
             color:name.trim()?PALETTE.coreFill:PALETTE.textThird,
@@ -300,18 +315,37 @@ function HabitModal({onSave,onClose,initial}) {
         </div>
 
         <FieldLabel>시간대</FieldLabel>
-        <div style={{display:"flex",gap:8}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:28}}>
           {BLOCKS.map(b=>{
             const a=block===b.key;
             return(
               <button key={b.key} onClick={()=>setBlock(b.key)} style={{
-                flex:1, padding:"12px 4px",
+                padding:"11px 8px",
                 border:`1px solid ${a?PALETTE.textPrimary:PALETTE.border}`,
                 borderRadius:12,
                 background:a?PALETTE.textPrimary:PALETTE.surface,
-                cursor:"pointer", fontSize:13, fontWeight:500,
+                cursor:"pointer", textAlign:"left", transition:"all .15s",
+              }}>
+                <div style={{fontSize:13,fontWeight:500,color:a?"#fff":PALETTE.textPrimary}}>{b.key}</div>
+                <div style={{fontSize:11,color:a?"rgba(255,255,255,.6)":PALETTE.textThird,marginTop:2}}>{b.desc}</div>
+              </button>
+            );
+          })}
+        </div>
+
+        <FieldLabel>소요 시간</FieldLabel>
+        <div style={{display:"flex",gap:7,flexWrap:"wrap",paddingBottom:40}}>
+          {DURATIONS.map(d=>{
+            const a=duration===d.value;
+            return(
+              <button key={d.value} onClick={()=>setDuration(d.value)} style={{
+                padding:"7px 14px",
+                border:`1px solid ${a?PALETTE.textPrimary:PALETTE.border}`,
+                borderRadius:20,
+                background:a?PALETTE.textPrimary:PALETTE.surface,
+                cursor:"pointer", fontSize:13,
                 color:a?"#fff":PALETTE.textSecond, transition:"all .15s",
-              }}>{b.key}</button>
+              }}>{d.label}</button>
             );
           })}
         </div>
@@ -407,11 +441,15 @@ function FieldLabel({children}) {
   return <div style={{fontSize:11,fontWeight:500,color:PALETTE.textThird,marginBottom:6,letterSpacing:".06em"}}>{children}</div>;
 }
 
-// ─── Drag list ────────────────────────────────────────────
+// ─── Drag list (touch + mouse) ───────────────────────────
 function DragList({items,onReorder,renderItem}) {
-  const [dragging,setDragging]=useState(null);
-  const [over,setOver]=useState(null);
-  const [ord,setOrd]=useState(()=>items.map(i=>i.id));
+  const [ord,setOrd]         = useState(()=>items.map(i=>i.id));
+  const [dragging,setDragging] = useState(null); // id being dragged
+  const [over,setOver]       = useState(null);
+  const touchDragId          = useRef(null);
+  const touchY               = useRef(0);
+  const longPressTimer       = useRef(null);
+  const isDragging           = useRef(false);
 
   useEffect(()=>{
     setOrd(prev=>{
@@ -420,22 +458,60 @@ function DragList({items,onReorder,renderItem}) {
     });
   },[items.map(i=>i.id).join(",")]);
 
+  const reorder = (fromId, toId) => {
+    if(fromId===toId) return;
+    setOrd(prev=>{
+      const n=[...prev],fi=n.indexOf(fromId),ti=n.indexOf(toId);
+      n.splice(fi,1);n.splice(ti,0,fromId);
+      onReorder(n); return n;
+    });
+  };
+
+  // touch handlers
+  const onTouchStart = (e, id) => {
+    touchY.current = e.touches[0].clientY;
+    isDragging.current = false;
+    longPressTimer.current = setTimeout(()=>{
+      isDragging.current = true;
+      touchDragId.current = id;
+      setDragging(id);
+    }, 350);
+  };
+  const onTouchMove = (e) => {
+    if(!isDragging.current) { clearTimeout(longPressTimer.current); return; }
+    e.preventDefault();
+    const y = e.touches[0].clientY;
+    const el = document.elementFromPoint(e.touches[0].clientX, y);
+    const row = el?.closest("[data-dragid]");
+    if(row) { const tid = row.dataset.dragid; if(tid !== touchDragId.current) setOver(tid); }
+  };
+  const onTouchEnd = () => {
+    clearTimeout(longPressTimer.current);
+    if(isDragging.current && touchDragId.current && over) {
+      reorder(touchDragId.current, over);
+    }
+    touchDragId.current=null; isDragging.current=false;
+    setDragging(null); setOver(null);
+  };
+
   const sorted=ord.map(id=>items.find(i=>i.id===id)).filter(Boolean);
   return sorted.map(item=>(
-    <div key={item.id} draggable
+    <div key={item.id}
+      data-dragid={item.id}
+      draggable
       onDragStart={()=>setDragging(item.id)}
       onDragOver={e=>{e.preventDefault();setOver(item.id);}}
-      onDrop={e=>{
-        e.preventDefault();
-        if(dragging===item.id){setDragging(null);setOver(null);return;}
-        const n=[...ord],fi=n.indexOf(dragging),ti=n.indexOf(item.id);
-        n.splice(fi,1);n.splice(ti,0,dragging);
-        setOrd(n);onReorder(n);setDragging(null);setOver(null);
-      }}
+      onDrop={e=>{e.preventDefault();reorder(dragging,item.id);setDragging(null);setOver(null);}}
       onDragEnd={()=>{setDragging(null);setOver(null);}}
-      style={{opacity:dragging===item.id?.35:1,
+      onTouchStart={e=>onTouchStart(e,item.id)}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      style={{
+        opacity:dragging===item.id?.35:1,
         outline:over===item.id&&dragging!==item.id?`1.5px dashed ${PALETTE.coreBorder}`:"none",
-        borderRadius:12,transition:"opacity .15s"}}>
+        borderRadius:12, transition:"opacity .15s",
+        touchAction: dragging===item.id?"none":"auto",
+      }}>
       {renderItem(item)}
     </div>
   ));
@@ -785,38 +861,41 @@ export default function App() {
                   {group.map(h=>{
                     const rate=rangeRate(h.id,monthDays);
                     const first=new Date(monthAnchor.getFullYear(),monthAnchor.getMonth(),1).getDay();
-                    const pastCount=monthDays.filter(d=>d<=today&&(isChecked(h.id,getDayKey(d))||isSkipped(h.id,getDayKey(d)))).length;
-                    const totalPast=monthDays.filter(d=>d<=today).length;
                     return(
-                      <div key={h.id} style={{background:PALETTE.surface,borderRadius:12,padding:"12px 13px",
-                        marginBottom:8,border:`1px solid ${PALETTE.border}`}}>
-                        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:10}}>
-                          
-                          <span style={{fontWeight:400,flex:1,fontSize:13}}>{h.name}</span>
+                      <div key={h.id} style={{background:PALETTE.surface,borderRadius:12,padding:"10px 13px",
+                        marginBottom:6,border:`1px solid ${PALETTE.border}`}}>
+                        {/* 헤더 */}
+                        <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:8}}>
+                          <span style={{fontWeight:400,flex:1,fontSize:13,color:PALETTE.textPrimary}}>{h.name}</span>
                           <PrioDot priority={h.priority}/>
-                          <div style={{textAlign:"right",marginLeft:6}}>
-                            <div style={{fontSize:13,fontWeight:500,color:rate>0?PALETTE.coreFill:PALETTE.textThird}}>
-                              {Math.round(rate*100)}%
-                            </div>
-                            <div style={{fontSize:9,color:PALETTE.textThird}}>{pastCount}/{totalPast}일</div>
-                          </div>
+                          <span style={{fontSize:12,fontWeight:500,color:rate>0?PALETTE.coreFill:PALETTE.textThird,marginLeft:4}}>
+                            {Math.round(rate*100)}%
+                          </span>
                         </div>
+                        {/* 요일 레이블 */}
+                        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:3}}>
+                          {DAYS_KR.map(d=>(
+                            <div key={d} style={{textAlign:"center",fontSize:8,color:PALETTE.textThird,fontWeight:500}}>{d}</div>
+                          ))}
+                        </div>
+                        {/* 점 히트맵 */}
                         <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3}}>
-                          {DAYS_KR.map(d=><div key={d} style={{textAlign:"center",fontSize:8,color:PALETTE.textThird,paddingBottom:2,fontWeight:500}}>{d}</div>)}
                           {Array.from({length:first}).map((_,i)=><div key={`e${i}`}/>)}
                           {monthDays.map((d,i)=>{
                             const dk=getDayKey(d),done=isChecked(h.id,dk),skip=isSkipped(h.id,dk);
                             const isPast=d<=today,isT=dk===todayKey;
                             return(
                               <div key={i} onClick={()=>{if(isPast)toggleLog(h.id,dk);}}
-                                style={{aspectRatio:"1",borderRadius:4,
-                                  background:skip?PALETTE.skipBg:done?PALETTE.coreFill:isPast?PALETTE.doneBg:"transparent",
-                                  border:isT?`1px solid ${PALETTE.textPrimary}`:"none",
-                                  display:"flex",alignItems:"center",justifyContent:"center",
-                                  fontSize:8,fontWeight:500,
-                                  color:skip?PALETTE.skipFill:done?"#fff":PALETTE.textThird,
-                                  cursor:isPast?"pointer":"default",transition:"background .12s"}}>
-                                {d.getDate()}
+                                style={{display:"flex",alignItems:"center",justifyContent:"center",
+                                  height:14,cursor:isPast?"pointer":"default"}}>
+                                <div style={{
+                                  width:isT?9:7, height:isT?9:7,
+                                  borderRadius:"50%",
+                                  background:skip?PALETTE.skipFill:done?PALETTE.coreFill:isPast?PALETTE.doneBorder:"transparent",
+                                  border:isT?`1.5px solid ${PALETTE.textPrimary}`:done||skip?"none":`0.5px solid ${PALETTE.border}`,
+                                  transition:"background .12s",
+                                  opacity:isPast?1:.25,
+                                }}/>
                               </div>
                             );
                           })}
