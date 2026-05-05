@@ -226,77 +226,95 @@ function ActionBtn({label,color,bg,onClick,icon,disabled,rounded}) {
   );
 }
 
-// ─── Habit Modal ──────────────────────────────────────────
+// ─── Habit Modal (전체화면 — iOS 키보드 대응) ─────────────
 function HabitModal({onSave,onClose,initial}) {
   const [name,setName]         = useState(initial?.name||"");
   const [priority,setPriority] = useState(initial?.priority||"regular");
   const [block,setBlock]       = useState(initial?.block||"오전");
 
+  // 전체화면으로 렌더링 — iOS에서 키보드가 올라와도 레이아웃 고정
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.4)",zIndex:1000,
-      display:"flex",alignItems:"flex-end",justifyContent:"center"}}
-      onClick={onClose}>
+    <div style={{
+      position:"fixed", inset:0, zIndex:1000,
+      background:PALETTE.bg,
+      display:"flex", flexDirection:"column",
+      paddingTop:"env(safe-area-inset-top)",
+    }}>
+      {/* 상단 바 */}
       <div style={{
+        display:"flex", alignItems:"center", justifyContent:"space-between",
+        padding:"16px 20px",
+        borderBottom:`1px solid ${PALETTE.border}`,
         background:PALETTE.surface,
-        borderRadius:"20px 20px 0 0",
-        width:"100%", maxWidth:480,
-        padding:"22px 20px",
-        paddingBottom:"max(28px, env(safe-area-inset-bottom))",
-        animation:"slideUp .28s ease",
-      }} onClick={e=>e.stopPropagation()}>
-        <style>{`@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
-
-        <div style={{fontWeight:500,fontSize:15,color:PALETTE.textPrimary,marginBottom:16}}>
+        flexShrink:0,
+      }}>
+        <button onClick={onClose} style={{
+          fontSize:14, color:PALETTE.textSecond, background:"none",
+          border:"none", cursor:"pointer", padding:"4px 0", fontFamily:"inherit",
+        }}>취소</button>
+        <span style={{fontSize:15, fontWeight:500, color:PALETTE.textPrimary}}>
           {initial&&initial.name?"습관 수정":"새 습관"}
-        </div>
+        </span>
+        <button onClick={()=>{if(name.trim()){onSave({name:name.trim(),priority,block});onClose();}}}
+          disabled={!name.trim()} style={{
+            fontSize:14, fontWeight:600,
+            color:name.trim()?PALETTE.coreFill:PALETTE.textThird,
+            background:"none", border:"none", cursor:name.trim()?"pointer":"default",
+            fontFamily:"inherit", padding:"4px 0",
+          }}>{initial&&initial.name?"저장":"추가"}</button>
+      </div>
 
-        <input value={name} onChange={e=>setName(e.target.value)} placeholder="습관 이름" autoFocus
-          style={{width:"100%",padding:"11px 13px",borderRadius:10,border:`1px solid ${PALETTE.border}`,
-            fontSize:14,outline:"none",fontFamily:"inherit",marginBottom:16,boxSizing:"border-box",
-            color:PALETTE.textPrimary,background:PALETTE.surface}}/>
+      {/* 내용 */}
+      <div style={{flex:1, overflowY:"auto", padding:"24px 20px"}}>
+        <input
+          value={name} onChange={e=>setName(e.target.value)}
+          placeholder="습관 이름" autoFocus
+          style={{
+            width:"100%", padding:"13px 14px",
+            borderRadius:12, border:`1px solid ${PALETTE.border}`,
+            fontSize:16, outline:"none", fontFamily:"inherit",
+            marginBottom:28, boxSizing:"border-box",
+            color:PALETTE.textPrimary, background:PALETTE.surface,
+          }}/>
 
         <FieldLabel>중요도</FieldLabel>
-        <div style={{display:"flex",gap:6,marginBottom:16}}>
+        <div style={{display:"flex",gap:8,marginBottom:28}}>
           {PRIO_ORDER.map(k=>{
             const p=PRIORITY[k], a=priority===k;
             const ac=k==="core"?PALETTE.coreFill:"#9E9E9B";
             return(
               <button key={k} onClick={()=>setPriority(k)} style={{
-                flex:1,padding:"9px 4px",border:`1px solid ${a?ac:PALETTE.border}`,
-                borderRadius:10,background:a?k==="core"?PALETTE.coreBg:PALETTE.doneBg:PALETTE.surface,
-                cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,
-                transition:"all .15s",
+                flex:1, padding:"12px 4px",
+                border:`1px solid ${a?ac:PALETTE.border}`,
+                borderRadius:12,
+                background:a?k==="core"?PALETTE.coreBg:PALETTE.doneBg:PALETTE.surface,
+                cursor:"pointer", display:"flex", flexDirection:"column",
+                alignItems:"center", gap:4, transition:"all .15s",
               }}>
                 <PrioDot priority={k}/>
-                <span style={{fontSize:11,fontWeight:500,color:a?ac:PALETTE.textThird}}>{p.label}</span>
-                <span style={{fontSize:10,color:PALETTE.textThird}}>{p.desc}</span>
+                <span style={{fontSize:12,fontWeight:500,color:a?ac:PALETTE.textThird}}>{p.label}</span>
+                <span style={{fontSize:11,color:PALETTE.textThird}}>{p.desc}</span>
               </button>
             );
           })}
         </div>
 
         <FieldLabel>시간대</FieldLabel>
-        <div style={{display:"flex",gap:6,marginBottom:20}}>
+        <div style={{display:"flex",gap:8}}>
           {BLOCKS.map(b=>{
             const a=block===b.key;
             return(
               <button key={b.key} onClick={()=>setBlock(b.key)} style={{
-                flex:1,padding:"9px 4px",border:`1px solid ${a?PALETTE.textPrimary:PALETTE.border}`,
-                borderRadius:10,background:a?PALETTE.textPrimary:PALETTE.surface,
-                cursor:"pointer",fontSize:12,fontWeight:500,
-                color:a?"#fff":PALETTE.textSecond,transition:"all .15s",
+                flex:1, padding:"12px 4px",
+                border:`1px solid ${a?PALETTE.textPrimary:PALETTE.border}`,
+                borderRadius:12,
+                background:a?PALETTE.textPrimary:PALETTE.surface,
+                cursor:"pointer", fontSize:13, fontWeight:500,
+                color:a?"#fff":PALETTE.textSecond, transition:"all .15s",
               }}>{b.key}</button>
             );
           })}
         </div>
-
-        <button onClick={()=>{if(name.trim()){onSave({name:name.trim(),priority,block});onClose();}}}
-          disabled={!name.trim()} style={{
-            width:"100%",padding:"13px",borderRadius:10,border:"none",
-            background:name.trim()?PALETTE.textPrimary:"#EBEBEA",
-            color:name.trim()?"#fff":PALETTE.textThird,
-            fontSize:14,fontWeight:500,cursor:name.trim()?"pointer":"not-allowed",fontFamily:"inherit",
-          }}>{initial&&initial.name?"저장":"추가"}</button>
       </div>
     </div>
   );
