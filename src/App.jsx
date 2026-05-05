@@ -620,6 +620,7 @@ export default function App() {
   const [logs,        setLogs]        = useState(()=>{ try{return JSON.parse(localStorage.getItem("lg_calm"))||{};}catch{return {};} });
   const [skips,       setSkips]       = useState(()=>{ try{return JSON.parse(localStorage.getItem("sk_calm"))||{};}catch{return {};} });
   const [globalOrder, setGlobalOrder] = useState(()=>{ try{return JSON.parse(localStorage.getItem("ord_calm"))||null;}catch{return null;} });
+  const [dailyAnchor, setDailyAnchor] = useState(today);
   const [weekAnchor,  setWeekAnchor]  = useState(today);
   const [monthAnchor, setMonthAnchor] = useState(today);
 
@@ -633,6 +634,9 @@ export default function App() {
   useEffect(()=>{ localStorage.setItem("lg_calm",  JSON.stringify(logs));        },[logs]);
   useEffect(()=>{ localStorage.setItem("sk_calm",  JSON.stringify(skips));       },[skips]);
   useEffect(()=>{ localStorage.setItem("ord_calm", JSON.stringify(globalOrder)); },[globalOrder]);
+
+  const dailyKey  = getDayKey(dailyAnchor);
+  const isActualToday = dailyKey === todayKey;
 
   const isChecked = (hid,dk) => !!logs[`${dk}_${hid}`];
   const isSkipped = (hid,dk) => !!skips[`${hid}_${dk}`];
@@ -671,11 +675,11 @@ export default function App() {
   };
 
   // stats
-  const todayScore    = weightedRate(habits, hid=>isChecked(hid,todayKey)||isSkipped(hid,todayKey));
-  const doneCount     = habits.filter(h=>isChecked(h.id,todayKey)).length;
-  const skippedCount  = habits.filter(h=>isSkipped(h.id,todayKey)).length;
+  const todayScore    = weightedRate(habits, hid=>isChecked(hid,dailyKey)||isSkipped(hid,dailyKey));
+  const doneCount     = habits.filter(h=>isChecked(h.id,dailyKey)).length;
+  const skippedCount  = habits.filter(h=>isSkipped(h.id,dailyKey)).length;
   const coreHabits    = habits.filter(h=>h.priority==="core");
-  const coreDone      = coreHabits.filter(h=>isChecked(h.id,todayKey)||isSkipped(h.id,todayKey)).length;
+  const coreDone      = coreHabits.filter(h=>isChecked(h.id,dailyKey)||isSkipped(h.id,dailyKey)).length;
   const allCoreDone   = coreHabits.length>0&&coreDone===coreHabits.length;
   const allDone       = habits.length>0&&(doneCount+skippedCount)===habits.length;
 
@@ -695,8 +699,9 @@ export default function App() {
 
       {/* ── Header ───────────────────────────────────── */}
       <div style={{padding:"52px 22px 18px",background:PALETTE.surface,borderBottom:`1px solid ${PALETTE.border}`}}>
-        <div style={{fontSize:11,fontWeight:500,color:PALETTE.textThird,letterSpacing:".07em",marginBottom:6}}>
-          {today.getFullYear()}년 {MONTHS_KR[today.getMonth()]} {today.getDate()}일 {DAYS_KR[today.getDay()]}요일
+        <div style={{fontSize:11,fontWeight:500,color:PALETTE.textThird,letterSpacing:".07em",marginBottom:6,display:"flex",alignItems:"center",gap:6}}>
+          {(tab==="daily"?dailyAnchor:today).getFullYear()}년 {MONTHS_KR[(tab==="daily"?dailyAnchor:today).getMonth()]} {(tab==="daily"?dailyAnchor:today).getDate()}일 {DAYS_KR[(tab==="daily"?dailyAnchor:today).getDay()]}요일
+          {tab==="daily"&&!isActualToday&&<span style={{fontSize:10,color:PALETTE.coreFill}}>과거</span>}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:14}}>
           <div style={{flex:1}}>
@@ -712,7 +717,7 @@ export default function App() {
                 <div style={{display:"flex",gap:4}}>
                   {coreHabits.map(h=>(
                     <div key={h.id} style={{width:7,height:7,borderRadius:"50%",
-                      background:(isChecked(h.id,todayKey)||isSkipped(h.id,todayKey))?PALETTE.coreFill:PALETTE.coreBg,
+                      background:(isChecked(h.id,dailyKey)||isSkipped(h.id,dailyKey))?PALETTE.coreFill:PALETTE.coreBg,
                       border:`1px solid ${PALETTE.coreBorder}`,transition:"background .3s"}}/>
                   ))}
                 </div>
@@ -743,7 +748,18 @@ export default function App() {
 
         {/* ═ DAILY ═ */}
         {tab==="daily"&&(
-          habits.length===0 ? (
+          <>
+          {/* 날짜 네비게이션 */}
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16}}>
+            <NavBtn onClick={()=>setDailyAnchor(addDays(dailyAnchor,-1))}>‹</NavBtn>
+            <div style={{flex:1,textAlign:"center",fontSize:13,fontWeight:500,color:PALETTE.textPrimary}}>
+              {isActualToday
+                ? "오늘"
+                : `${MONTHS_KR[dailyAnchor.getMonth()]} ${dailyAnchor.getDate()}일 ${DAYS_KR[dailyAnchor.getDay()]}요일`}
+            </div>
+            <NavBtn onClick={()=>{ if(!isActualToday) setDailyAnchor(addDays(dailyAnchor,1)); }} disabled={isActualToday}>›</NavBtn>
+          </div>
+          {habits.length===0 ? (
             <div style={{textAlign:"center",padding:"52px 0",color:PALETTE.textThird}}>
               <div style={{fontSize:32,marginBottom:12,opacity:.4}}>✦</div>
               <div style={{fontSize:14,marginBottom:4}}>아직 습관이 없어요</div>
@@ -757,7 +773,7 @@ export default function App() {
           ) : (
             BLOCKS.map(({key:blk,desc})=>{
               const group=orderedBlock(blk);
-              const blkDone=group.filter(h=>isChecked(h.id,todayKey)||isSkipped(h.id,todayKey)).length;
+              const blkDone=group.filter(h=>isChecked(h.id,dailyKey)||isSkipped(h.id,dailyKey)).length;
               return(
                 <div key={blk} style={{marginBottom:16}}>
                   <BlockHeader blk={blk} desc={desc} done={blkDone} total={group.length}
@@ -770,19 +786,20 @@ export default function App() {
                   )}
                   <DragList items={group} onReorder={ord=>handleReorder(blk,ord)} renderItem={h=>(
                     <HabitRow
-                      habit={h} checked={isChecked(h.id,todayKey)} skipped={isSkipped(h.id,todayKey)}
-                      onCheck={()=>toggleLog(h.id,todayKey)} streak={getStreak(h.id)}
-                      canSkip={skipWeekCount(h.id)<SKIP_LIMIT&&!isChecked(h.id,todayKey)}
+                      habit={h} checked={isChecked(h.id,dailyKey)} skipped={isSkipped(h.id,dailyKey)}
+                      onCheck={()=>toggleLog(h.id,dailyKey)} streak={getStreak(h.id)}
+                      canSkip={skipWeekCount(h.id)<SKIP_LIMIT&&!isChecked(h.id,dailyKey)}
                       skippedThisWeek={skipWeekCount(h.id)}
-                      onSkip={()=>handleSkip(h.id,todayKey)}
+                      onSkip={()=>handleSkip(h.id,dailyKey)}
                       onEdit={()=>setEditHabit(h)} onDelete={()=>setDeleteTarget(h)}
-                      onRetro={()=>setRetroTarget(h)} dateKey={todayKey}
+                      onRetro={()=>setRetroTarget(h)} dateKey={dailyKey}
                     />
                   )}/>
                 </div>
               );
             })
           )
+          </>
         )}
 
         {/* ═ WEEKLY ═ */}
