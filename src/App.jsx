@@ -289,12 +289,13 @@ function HabitModal({onSave,onClose,initial}) {
       </div>
 
       <FieldLabel>이모지</FieldLabel>
-      <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:20}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginBottom:20}}>
         {EMOJI_OPTIONS.map(e=>(
           <button key={e} onClick={()=>setEmoji(e)} style={{
-            width:36,height:36,borderRadius:8,fontSize:17,cursor:"pointer",
+            aspectRatio:"1",borderRadius:8,fontSize:18,cursor:"pointer",
             border:`1px solid ${emoji===e?PALETTE.textPrimary:PALETTE.border}`,
             background:emoji===e?PALETTE.doneBg:PALETTE.surface,transition:"all .12s",
+            display:"flex",alignItems:"center",justifyContent:"center",
           }}>{e}</button>
         ))}
       </div>
@@ -379,7 +380,10 @@ function Modal({children,onClose,center}) {
         padding:"24px 20px 40px",
         width:"100%",maxWidth:480,
         animation:center?"popIn .2s ease":"slideUp .28s ease",
-        maxHeight:"90vh",overflowY:"auto",
+        maxHeight:"85vh",
+        overflowY:"auto",
+        WebkitOverflowScrolling:"touch",
+        overscrollBehavior:"contain",
       }} onClick={e=>e.stopPropagation()}>
         <style>{`
           @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
