@@ -167,16 +167,6 @@ function HabitRow({habit,checked,skipped,onCheck,streak,canSkip,skippedThisWeek,
           borderRadius:"0 2px 2px 0",
           background:checked?PALETTE.coreFill:skipped?"#F5D790":PALETTE.coreBorder}}/>}
 
-        {/* Emoji */}
-        <span style={{
-          fontSize:isCore?16:14,
-          opacity:checked||skipped?0.45:isOptional?0.6:1,
-          flexShrink:0,
-          marginLeft:isCore?6:0,
-          filter:checked?"grayscale(1)":"none",
-          transition:"opacity .2s, filter .2s",
-        }}>{habit.emoji}</span>
-
         {/* Text */}
         <div style={{flex:1,minWidth:0}}>
           <span style={{
@@ -239,7 +229,6 @@ function ActionBtn({label,color,bg,onClick,icon,disabled,rounded}) {
 // ─── Habit Modal ──────────────────────────────────────────
 function HabitModal({onSave,onClose,initial}) {
   const [name,setName]         = useState(initial?.name||"");
-  const [emoji,setEmoji]       = useState(initial?.emoji||"🎯");
   const [priority,setPriority] = useState(initial?.priority||"regular");
   const [block,setBlock]       = useState(initial?.block||"오전");
 
@@ -248,86 +237,66 @@ function HabitModal({onSave,onClose,initial}) {
       display:"flex",alignItems:"flex-end",justifyContent:"center"}}
       onClick={onClose}>
       <div style={{
-        background:PALETTE.surface, borderRadius:"20px 20px 0 0",
+        background:PALETTE.surface,
+        borderRadius:"20px 20px 0 0",
         width:"100%", maxWidth:480,
-        height:"80vh", display:"flex", flexDirection:"column",
+        padding:"22px 20px",
+        paddingBottom:"max(28px, env(safe-area-inset-bottom))",
         animation:"slideUp .28s ease",
       }} onClick={e=>e.stopPropagation()}>
         <style>{`@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
 
-        {/* 고정 헤더 */}
-        <div style={{padding:"20px 20px 14px", flexShrink:0, borderBottom:`1px solid ${PALETTE.border}`}}>
-          <div style={{fontWeight:500,fontSize:15,color:PALETTE.textPrimary}}>
-            {initial&&initial.name?"습관 수정":"새 습관"}
-          </div>
+        <div style={{fontWeight:500,fontSize:15,color:PALETTE.textPrimary,marginBottom:16}}>
+          {initial&&initial.name?"습관 수정":"새 습관"}
         </div>
 
-        {/* 스크롤 영역 */}
-        <div style={{flex:1, overflowY:"scroll", WebkitOverflowScrolling:"touch", padding:"16px 20px 0"}}>
-          <input value={name} onChange={e=>setName(e.target.value)} placeholder="습관 이름" autoFocus
-            style={{width:"100%",padding:"10px 12px",borderRadius:10,border:`1px solid ${PALETTE.border}`,
-              fontSize:14,outline:"none",fontFamily:"inherit",marginBottom:14,boxSizing:"border-box",
-              color:PALETTE.textPrimary,background:PALETTE.surface}}/>
+        <input value={name} onChange={e=>setName(e.target.value)} placeholder="습관 이름" autoFocus
+          style={{width:"100%",padding:"11px 13px",borderRadius:10,border:`1px solid ${PALETTE.border}`,
+            fontSize:14,outline:"none",fontFamily:"inherit",marginBottom:16,boxSizing:"border-box",
+            color:PALETTE.textPrimary,background:PALETTE.surface}}/>
 
-          <FieldLabel>중요도</FieldLabel>
-          <div style={{display:"flex",gap:6,marginBottom:14}}>
-            {PRIO_ORDER.map(k=>{
-              const p=PRIORITY[k], a=priority===k;
-              const ac = k==="core"?PALETTE.coreFill:"#9E9E9B";
-              return(
-                <button key={k} onClick={()=>setPriority(k)} style={{
-                  flex:1,padding:"8px 4px",border:`1px solid ${a?ac:PALETTE.border}`,
-                  borderRadius:10,background:a?k==="core"?PALETTE.coreBg:PALETTE.doneBg:PALETTE.surface,
-                  cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,
-                  transition:"all .15s",
-                }}>
-                  <PrioDot priority={k}/>
-                  <span style={{fontSize:11,fontWeight:500,color:a?ac:PALETTE.textThird}}>{p.label}</span>
-                  <span style={{fontSize:10,color:PALETTE.textThird}}>{p.desc}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <FieldLabel>시간대</FieldLabel>
-          <div style={{display:"flex",gap:6,marginBottom:14}}>
-            {BLOCKS.map(b=>{
-              const a=block===b.key;
-              return(
-                <button key={b.key} onClick={()=>setBlock(b.key)} style={{
-                  flex:1,padding:"8px 4px",border:`1px solid ${a?PALETTE.textPrimary:PALETTE.border}`,
-                  borderRadius:10,background:a?PALETTE.textPrimary:PALETTE.surface,
-                  cursor:"pointer",fontSize:12,fontWeight:500,
-                  color:a?"#fff":PALETTE.textSecond,transition:"all .15s",
-                }}>{b.key}</button>
-              );
-            })}
-          </div>
-
-          <FieldLabel>이모지</FieldLabel>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8,paddingBottom:8}}>
-            {EMOJI_OPTIONS.map(e=>(
-              <button key={e} onClick={()=>setEmoji(e)} style={{
-                width:"100%",aspectRatio:"1",borderRadius:8,fontSize:22,cursor:"pointer",
-                border:`1px solid ${emoji===e?PALETTE.textPrimary:PALETTE.border}`,
-                background:emoji===e?PALETTE.doneBg:PALETTE.surface,transition:"all .12s",
-                display:"flex",alignItems:"center",justifyContent:"center",
-              }}>{e}</button>
-            ))}
-          </div>
+        <FieldLabel>중요도</FieldLabel>
+        <div style={{display:"flex",gap:6,marginBottom:16}}>
+          {PRIO_ORDER.map(k=>{
+            const p=PRIORITY[k], a=priority===k;
+            const ac=k==="core"?PALETTE.coreFill:"#9E9E9B";
+            return(
+              <button key={k} onClick={()=>setPriority(k)} style={{
+                flex:1,padding:"9px 4px",border:`1px solid ${a?ac:PALETTE.border}`,
+                borderRadius:10,background:a?k==="core"?PALETTE.coreBg:PALETTE.doneBg:PALETTE.surface,
+                cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,
+                transition:"all .15s",
+              }}>
+                <PrioDot priority={k}/>
+                <span style={{fontSize:11,fontWeight:500,color:a?ac:PALETTE.textThird}}>{p.label}</span>
+                <span style={{fontSize:10,color:PALETTE.textThird}}>{p.desc}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* 고정 하단 버튼 */}
-        <div style={{padding:"12px 20px", paddingBottom:"max(20px, env(safe-area-inset-bottom))",
-          flexShrink:0, borderTop:`1px solid ${PALETTE.border}`, background:PALETTE.surface}}>
-          <button onClick={()=>{if(name.trim()){onSave({name:name.trim(),emoji,priority,block});onClose();}}}
-            disabled={!name.trim()} style={{
-              width:"100%",padding:"13px",borderRadius:10,border:"none",
-              background:name.trim()?PALETTE.textPrimary:"#EBEBEA",
-              color:name.trim()?"#fff":PALETTE.textThird,
-              fontSize:14,fontWeight:500,cursor:name.trim()?"pointer":"not-allowed",fontFamily:"inherit",
-            }}>{initial&&initial.name?"저장":"추가"}</button>
+        <FieldLabel>시간대</FieldLabel>
+        <div style={{display:"flex",gap:6,marginBottom:20}}>
+          {BLOCKS.map(b=>{
+            const a=block===b.key;
+            return(
+              <button key={b.key} onClick={()=>setBlock(b.key)} style={{
+                flex:1,padding:"9px 4px",border:`1px solid ${a?PALETTE.textPrimary:PALETTE.border}`,
+                borderRadius:10,background:a?PALETTE.textPrimary:PALETTE.surface,
+                cursor:"pointer",fontSize:12,fontWeight:500,
+                color:a?"#fff":PALETTE.textSecond,transition:"all .15s",
+              }}>{b.key}</button>
+            );
+          })}
         </div>
+
+        <button onClick={()=>{if(name.trim()){onSave({name:name.trim(),priority,block});onClose();}}}
+          disabled={!name.trim()} style={{
+            width:"100%",padding:"13px",borderRadius:10,border:"none",
+            background:name.trim()?PALETTE.textPrimary:"#EBEBEA",
+            color:name.trim()?"#fff":PALETTE.textThird,
+            fontSize:14,fontWeight:500,cursor:name.trim()?"pointer":"not-allowed",fontFamily:"inherit",
+          }}>{initial&&initial.name?"저장":"추가"}</button>
       </div>
     </div>
   );
@@ -340,7 +309,7 @@ function RetroModal({habit,logs,onToggle,onClose}) {
   return(
     <Modal onClose={onClose}>
       <div style={{fontSize:15,fontWeight:500,marginBottom:3,color:PALETTE.textPrimary}}>
-        {habit.emoji} {habit.name}
+        {habit.name}
       </div>
       <div style={{fontSize:12,color:PALETTE.textThird,marginBottom:20}}>지난 7일 · 탭해서 수정</div>
       <div style={{display:"flex",gap:7}}>
@@ -375,7 +344,6 @@ function DeleteConfirm({habit,onConfirm,onCancel}) {
   return(
     <Modal onClose={onCancel} center>
       <div style={{textAlign:"center",paddingTop:4}}>
-        <div style={{fontSize:28,marginBottom:10}}>{habit.emoji}</div>
         <div style={{fontSize:15,fontWeight:500,color:PALETTE.textPrimary,marginBottom:6}}>{habit.name}</div>
         <div style={{fontSize:12,color:PALETTE.textThird,marginBottom:22}}>삭제하면 기록도 함께 사라져요</div>
         <div style={{display:"flex",gap:8}}>
@@ -722,7 +690,7 @@ export default function App() {
                       <div key={h.id} style={{background:PALETTE.surface,borderRadius:12,padding:"11px 13px",
                         marginBottom:6,border:`1px solid ${PALETTE.border}`}}>
                         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                          <span style={{fontSize:14,opacity:.8}}>{h.emoji}</span>
+                          
                           <span style={{fontWeight:400,flex:1,fontSize:13,color:PALETTE.textPrimary}}>{h.name}</span>
                           <PrioDot priority={h.priority}/>
                           <span style={{fontSize:12,fontWeight:500,color:rate>0?PALETTE.coreFill:PALETTE.textThird}}>
@@ -805,7 +773,7 @@ export default function App() {
                       <div key={h.id} style={{background:PALETTE.surface,borderRadius:12,padding:"12px 13px",
                         marginBottom:8,border:`1px solid ${PALETTE.border}`}}>
                         <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:10}}>
-                          <span style={{fontSize:14,opacity:.8}}>{h.emoji}</span>
+                          
                           <span style={{fontWeight:400,flex:1,fontSize:13}}>{h.name}</span>
                           <PrioDot priority={h.priority}/>
                           <div style={{textAlign:"right",marginLeft:6}}>
