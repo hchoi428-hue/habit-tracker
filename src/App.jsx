@@ -443,13 +443,12 @@ function FieldLabel({children}) {
 
 // ─── Drag list (touch + mouse) ───────────────────────────
 function DragList({items,onReorder,renderItem}) {
-  const [ord,setOrd]         = useState(()=>items.map(i=>i.id));
-  const [dragging,setDragging] = useState(null); // id being dragged
-  const [over,setOver]       = useState(null);
-  const touchDragId          = useRef(null);
-  const touchY               = useRef(0);
-  const longPressTimer       = useRef(null);
-  const isDragging           = useRef(false);
+  const [ord,setOrd]       = useState(()=>items.map(i=>i.id));
+  const [dragging,setDragging] = useState(null);
+  const [overIdx,setOverIdx]   = useState(null);
+  const containerRef       = useRef(null);
+  const longPressTimer     = useRef(null);
+  const dragState          = useRef({active:false,id:null,startY:0,currentY:0});
 
   useEffect(()=>{
     setOrd(prev=>{
@@ -458,63 +457,96 @@ function DragList({items,onReorder,renderItem}) {
     });
   },[items.map(i=>i.id).join(",")]);
 
-  const reorder = (fromId, toId) => {
-    if(fromId===toId) return;
+  const reorder = (fromId, toIdx) => {
     setOrd(prev=>{
-      const n=[...prev],fi=n.indexOf(fromId),ti=n.indexOf(toId);
-      n.splice(fi,1);n.splice(ti,0,fromId);
-      onReorder(n); return n;
+      const n=[...prev];
+      const fi=n.indexOf(fromId);
+      if(fi===-1||fi===toIdx) return prev;
+      n.splice(fi,1);
+      n.splice(toIdx,0,fromId);
+      onReorder(n);
+      return n;
     });
   };
 
-  // touch handlers
-  const onTouchStart = (e, id) => {
-    touchY.current = e.touches[0].clientY;
-    isDragging.current = false;
-    longPressTimer.current = setTimeout(()=>{
-      isDragging.current = true;
-      touchDragId.current = id;
-      setDragging(id);
-    }, 350);
-  };
-  const onTouchMove = (e) => {
-    if(!isDragging.current) { clearTimeout(longPressTimer.current); return; }
-    e.preventDefault();
-    const y = e.touches[0].clientY;
-    const el = document.elementFromPoint(e.touches[0].clientX, y);
-    const row = el?.closest("[data-dragid]");
-    if(row) { const tid = row.dataset.dragid; if(tid !== touchDragId.current) setOver(tid); }
-  };
-  const onTouchEnd = () => {
-    clearTimeout(longPressTimer.current);
-    if(isDragging.current && touchDragId.current && over) {
-      reorder(touchDragId.current, over);
+  // 터치 드래그: 각 row의 getBoundingClientRect로 위치 계산
+  const getTargetIdx = (clientY) => {
+    if(!containerRef.current) return null;
+    const rows = containerRef.current.querySelectorAll("[data-dragrow]");
+    for(let i=0;i<rows.length;i++){
+      const r=rows[i].getBoundingClientRect();
+      if(clientY < r.top + r.height/2) return i;
     }
-    touchDragId.current=null; isDragging.current=false;
-    setDragging(null); setOver(null);
+    return rows.length-1;
   };
 
-  const sorted=ord.map(id=>items.find(i=>i.id===id)).filter(Boolean);
-  return sorted.map(item=>(
-    <div key={item.id}
-      data-dragid={item.id}
-      draggable
-      onDragStart={()=>setDragging(item.id)}
-      onDragOver={e=>{e.preventDefault();setOver(item.id);}}
-      onDrop={e=>{e.preventDefault();reorder(dragging,item.id);setDragging(null);setOver(null);}}
-      onDragEnd={()=>{setDragging(null);setOver(null);}}
-      onTouchStart={e=>onTouchStart(e,item.id)}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-      style={{
-        opacity:dragging===item.id?.35:1,
-        outline:over===item.id&&dragging!==item.id?`1.5px dashed ${PALETTE.coreBorder}`:"none",
-        borderRadius:12, transition:"opacity .15s",
-        touchAction: dragging===item.id?"none":"auto",
-      }}>
-      {renderItem(item)}
+  const onTouchStart = (e, id) => {
+    const y = e.touches[0].clientY;
+    dragState.current = {active:false,id,startY:y,currentY:y};
+    longPressTimer.current = setTimeout(()=>{
+      dragState.current.active = true;
+      setDragging(id);
+      // 진동 피드백 (지원되는 기기)
+      if(navigator.vibrate) navigator.vibrate(30);
+    }, 300);
+  };
+
+  const onTouchMove = (e) => {
+    const y = e.touches[0].clientY;
+    // 손가락이 10px 이상 움직이면 long press 취소
+    if(!dragState.current.active){
+      if(Math.abs(y - dragState.current.startY) > 10){
+        clearTimeout(longPressTimer.current);
+      }
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    dragState.current.currentY = y;
+    const idx = getTargetIdx(y);
+    setOverIdx(idx);
+  };
+
+  const onTouchEnd = () => {
+    clearTimeout(longPressTimer.current);
+    if(dragState.current.active && dragState.current.id !== null && overIdx !== null){
+      reorder(dragState.current.id, overIdx);
+    }
+    dragState.current = {active:false,id:null,startY:0,currentY:0};
+    setDragging(null);
+    setOverIdx(null);
+  };
+
+  const sorted = ord.map(id=>items.find(i=>i.id===id)).filter(Boolean);
+
+  return(
+    <div ref={containerRef}>
+      {sorted.map((item,idx)=>(
+        <div key={item.id}
+          data-dragrow={idx}
+          draggable
+          onDragStart={e=>{e.dataTransfer.effectAllowed="move";setDragging(item.id);}}
+          onDragOver={e=>{e.preventDefault();setOverIdx(idx);}}
+          onDrop={e=>{e.preventDefault();reorder(dragging,idx);setDragging(null);setOverIdx(null);}}
+          onDragEnd={()=>{setDragging(null);setOverIdx(null);}}
+          onTouchStart={e=>onTouchStart(e,item.id)}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          style={{
+            opacity: dragging===item.id ? .35 : 1,
+            borderRadius: 12,
+            transition: "opacity .15s",
+            // 드래그 중인 아이템 위로 올 때 상단 구분선 표시
+            borderTop: overIdx===idx && dragging!==item.id
+              ? `2px solid ${PALETTE.coreFill}`
+              : "2px solid transparent",
+            touchAction: dragState.current.active ? "none" : "pan-y",
+          }}>
+          {renderItem(item)}
+        </div>
+      ))}
     </div>
-  ));
+  );
 }
 
 // ─── Section header ───────────────────────────────────────
